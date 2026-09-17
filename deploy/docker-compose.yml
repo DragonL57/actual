@@ -20,7 +20,11 @@ services:
     volumes:
       - ./actual-data:/data
     healthcheck:
-      test: ['CMD-SHELL', 'node scripts/health-check.js']
+      # Upstream runs `node scripts/health-check.js`, which is where the official
+      # image keeps it. This image builds into /app/build, so with the upstream
+      # path the check dies with MODULE_NOT_FOUND and the container sits
+      # unhealthy, blocking anything that waits on service_healthy.
+      test: ['CMD-SHELL', 'node build/scripts/health-check.js']
       interval: 60s
       timeout: 10s
       retries: 3
