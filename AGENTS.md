@@ -2,6 +2,41 @@
 
 This guide provides comprehensive information for AI agents (like Cursor) working with the Actual Budget codebase.
 
+## Fork workflow (DragonL57/actual)
+
+This checkout is a personal fork of actualbudget/actual that deploys to
+https://finance.thelong.online. Upstream commit and PR rules still apply (see
+[PR and Commit Rules](.github/agents/pr-and-commit-rules.md)); the rules below
+are this fork's.
+
+- `dev` is where work happens, `master` is production.
+- Do not commit or push to `master`. Branch protection rejects it; only a merged
+  pull request writes to that branch.
+- Do not merge a pull request. Open it from `dev` against `master`
+  (`gh pr create --base master --head dev`), then stop and let the human merge.
+- Do not re-enable the upstream workflows. 39 are disabled; `Deploy Actual`
+  (`.github/workflows/deploy.yml`) is the only one that should run.
+- Do not hand-edit the deploy files on the VPS. Every deploy copies
+  `deploy/docker-compose.yml` and `deploy/Caddyfile` from the repo over them,
+  and the running stack interpolates the image tag from `ACTUAL_IMAGE`.
+
+### What a merge to `master` triggers
+
+`.github/workflows/deploy.yml` builds `sync-server.Dockerfile` on the runner
+(the build needs about 8GB RAM, so it cannot run on the 1GB VPS), pushes
+`ghcr.io/dragonl57/actual-server:master` and a `:<sha>` tag, then pipes
+`deploy/deploy.sh` over SSH to `thelong@103.245.236.208`, where the compose
+stack lives in `/home/thelong/actual`. That script snapshots `actual-data`
+into `backups/` (7 kept), pulls, restarts the stack, reloads Caddy, and waits
+for `/health` on loopback and over HTTPS. Repo secret: `SSH_VPS_KEY`.
+
+- Roll back on the VPS with an older tag:
+  `IMAGE=ghcr.io/dragonl57/actual-server:<sha> bash deploy.sh`.
+- Redeploy the current `master` without a code change:
+  `gh workflow run deploy.yml --repo DragonL57/actual --ref master`.
+- Put `[skip-backup]` in the commit message only when the data snapshot is
+  genuinely unnecessary; it is what a rollback restores.
+
 ## Project Overview
 
 **Actual Budget** is a local-first personal finance tool written in TypeScript/JavaScript. It's 100% free and open-source with synchronization capabilities across devices.
