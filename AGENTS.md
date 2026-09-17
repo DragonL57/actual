@@ -19,6 +19,9 @@ are this fork's.
 - Do not hand-edit the deploy files on the VPS. Every deploy copies
   `deploy/docker-compose.yml` and `deploy/Caddyfile` from the repo over them,
   and the running stack interpolates the image tag from `ACTUAL_IMAGE`.
+- `deploy/actual-ai.env` is not in git. It holds the Ollama API key, the
+  server password, and the budget sync id, and it lives only on the VPS
+  (`/home/thelong/actual/actual-ai.env`, mode 600).
 
 ### What a merge to `master` triggers
 
