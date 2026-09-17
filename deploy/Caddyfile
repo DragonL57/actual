@@ -17,9 +17,13 @@ finance.thelong.online {
 	# revalidate: after a deploy, a tab that still holds the old shell would ask
 	# for old chunk names, get index.html back with HTTP 200 from the SPA
 	# fallback, and fail with "failed loading lazy-loaded module".
+	# `>` is "set with defer": the override only sticks when it is applied as the
+	# response is written, after reverse_proxy has copied the upstream's headers
+	# (which carry `Cache-Control: public, max-age=0`). A plain set runs first and
+	# leaves both fields on the response.
 	@hashed path /static/*
-	header @hashed Cache-Control "public, max-age=31536000, immutable"
+	header @hashed >Cache-Control "public, max-age=31536000, immutable"
 
 	@unhashed not path /static/*
-	header @unhashed Cache-Control "no-cache"
+	header @unhashed >Cache-Control "no-cache"
 }
