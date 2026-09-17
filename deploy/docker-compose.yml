@@ -1,0 +1,45 @@
+# Actual sync server on the personal VPS, deployed by .github/workflows/deploy.yml.
+#
+# The deploy script copies this file (and Caddyfile) to the VPS and runs
+# `docker compose up -d` there, so the running config always matches master.
+#
+# 5006 stays bound to loopback: only Caddy publishes ports, and it proxies to
+# actual_server over the compose network.
+#
+# The `environment:` tag is intentionally absent. Compose v5.5.1 rejects the
+# upstream compose file's empty `environment:` key, and nothing here needs an
+# ACTUAL_* variable: the server's trustedProxies default already covers the
+# Docker network, so X-Forwarded-For from Caddy is honoured.
+services:
+  actual_server:
+    # ACTUAL_IMAGE is set by deploy.sh (a sha tag, for an exact rollback target);
+    # the default keeps a hand-run `docker compose up -d` on the rolling tag.
+    image: ${ACTUAL_IMAGE:-ghcr.io/dragonl57/actual-server:master}
+    ports:
+      - '127.0.0.1:5006:5006'
+    volumes:
+      - ./actual-data:/data
+    healthcheck:
+      test: ['CMD-SHELL', 'node scripts/health-check.js']
+      interval: 60s
+      timeout: 10s
+      retries: 3
+      start_period: 20s
+    restart: unless-stopped
+
+  caddy:
+    image: caddy:2-alpine
+    ports:
+      - '80:80'
+      - '443:443'
+    volumes:
+      - ./Caddyfile:/etc/caddy/Caddyfile:ro
+      - caddy-data:/data
+      - caddy-config:/config
+    depends_on:
+      - actual_server
+    restart: unless-stopped
+
+volumes:
+  caddy-data:
+  caddy-config:

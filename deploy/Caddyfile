@@ -1,0 +1,25 @@
+# finance.thelong.online -> Actual sync server, deployed with the compose file
+# next to this one.
+#
+# Caddy gets the certificate from Let's Encrypt with the TLS-ALPN / HTTP-01
+# challenge, so ports 80 and 443 must reach this box directly. Keep the DNS
+# record unproxied (no CDN, no cache): Actual syncs with plain POST bodies of up
+# to 20MB, and a caching proxy in front of that is a source of silent breakage.
+finance.thelong.online {
+	encode zstd gzip
+	reverse_proxy actual_server:5006 {
+		# Sync responses stream and uploads are large; never buffer them.
+		flush_interval -1
+	}
+
+	# Vite hashes every build output, so those files can be cached forever.
+	# Everything else (the HTML shell, icons, manifest, service worker) has to
+	# revalidate: after a deploy, a tab that still holds the old shell would ask
+	# for old chunk names, get index.html back with HTTP 200 from the SPA
+	# fallback, and fail with "failed loading lazy-loaded module".
+	@hashed path /static/*
+	header @hashed Cache-Control "public, max-age=31536000, immutable"
+
+	@unhashed not path /static/*
+	header @unhashed Cache-Control "no-cache"
+}
