@@ -27,6 +27,30 @@ services:
       start_period: 20s
     restart: unless-stopped
 
+  actual_ai:
+    image: docker.io/sakowicz/actual-ai:latest
+    # Secrets (Ollama key, server password, budget sync id) stay out of git; this
+    # file exists only on the VPS, mode 600.
+    env_file:
+      - ./actual-ai.env
+    environment:
+      ACTUAL_SERVER_URL: http://actual_server:5006
+      # Ollama Cloud serves an OpenAI-compatible API at /v1, and the openai
+      # provider is the only actual-ai provider that sends an Authorization
+      # header (the ollama provider takes no key, so it cannot reach the cloud).
+      LLM_PROVIDER: openai
+      OPENAI_BASE_URL: https://ollama.com/v1
+      OPENAI_MODEL: gemma4:31b
+      CLASSIFICATION_SCHEDULE_CRON: '0 */6 * * *'
+      # classifyOnStartup classifies right after a deploy. dryRun keeps runs
+      # read-only and has to be listed explicitly: the code reads the `enabled`
+      # flag, which is false when FEATURES omits it, whatever the README says.
+      FEATURES: '["dryRun", "syncAccountsBeforeClassify", "classifyOnStartup"]'
+    depends_on:
+      actual_server:
+        condition: service_healthy
+    restart: unless-stopped
+
   caddy:
     image: caddy:2-alpine
     ports:
